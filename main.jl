@@ -1,53 +1,50 @@
-using LinearAlgebra, BenchmarkTools, SparseArrays, Random, QuadGK
+using LinearAlgebra, Random, QuadGK, PyPlot
 
 I(ω::Float64; α::Float64=1.0, ωc::Float64=1.0) = 2π*α*ω*exp(-ω/ωc)
-function Q(t::Float64, ω∞::Float64=10.0; α::Float64=1.0, β::Float64=1.0, ωc::Float64=1.0)
+function Q(t::Float64; ω∞::Float64=10.0, α::Float64=1.0, β::Float64=1.0, ωc::Float64=1.0)
     return quadgk(ω -> 1/π*I(ω; α=α, ωc=ωc)/ω^2*(coth(ω*β/2)*(1-cos(ω*t)) + 1im*sin(ω*t)), 0.0, ω∞)[1]
 end
 
 let
-    μ = 0.0
-    ne = 100
-    q = 10
-    τ = 20.0
+    μ = 1.0
+    ne = 1000
+    q = 20
+    τ = 2.0
     vη = vζ = [-1, 0, +1]  # allowed variable values
     Nη = Nζ = q
     η, ζ = rand(vη, Nη), rand(vζ, Nζ)
 
-    Λ2₀ = real(Q(τ))
-    d²τQ(j) = ((j+1)*τ) + Q((j-1)*τ) - 2*Q(j*τ)
-    Λ2_1lejleqm2(j::Int64) = real(d²Qτ(j))
-    X2_1lejleqm2(j::Int64) = imag(Q((j+1)*τ) + Q((j-1)*τ) - 2*Q(j*τ))
-    Λ1₁ = real(Q(τ/2))
-    Λ1_2lejleq(j::Int64) = real(Q((j-1/2)*τ) - Q((j-1)*τ) - Q((j-3/2)*τ) - Q((j-2)*τ))
-    X1_2lejleq(j::Int64) = real(Q((j-1/2)*τ) - Q((j-1)*τ) - Q((j-3/2)*τ) - Q((j-2)*τ))
-    Xμ₁ = -imag(Q(τ/2))
-    Xμ₁2lejleq(j::Int64) = -imag(Q((j-1/2)*τ) - Q((j-3/2)*τ))
+    # helper functions to set matrix elements
+    d²Qdτ²(j) = Q((j+1)*τ) + Q((j-1)*τ) - 2*Q(j*τ)
+    d²Qdτ²oh(j) = Q((j-0.5)*τ) + Q((j-1.5)*τ) - 2*Q((j-1)*τ) + Q((j-2)*τ)
 
     nηs, nζs = 1:Nη, 1:Nζ
-    Λ2 = zeros(Nζ, Nζ)  # lower △ matrix with zeros along the diagonal
-    for x in 1:size(Λ2, 1), y in 1:x-1 # 1:size(Λ2, 2)
-        @show x, y
-        j = x-y
-        if 1 <= j <= q-2
-            Λ2[x, y] = d²τ
-        end
-    end
-    Λ1 = zeros(Nζ)'
-    Λ1[1] = Λ1₁
+    Λ2 = zeros(ComplexF64, Nζ, Nζ)  # lower △ matrix with zeros along the diagonal
     X2 = zeros(Nζ, Nη)  # lower △ matrix with zeros along the 0,-1 diagonals
-    for x in 1:size(X2, 1), y in 1:x-1 # 1:size(Λ2, 2)
-        @show x, y
-        j = x-y
-        if 1 <= j <= q-2
-            X2[x, y] = X2_1lejleqm2(j)
-        end
-    end
+    Λ1 = zeros(Nζ)'
     X1 = zeros(Nζ)'
-    X1[1] = 0
     Xμ = zeros(Nζ)'
 
-    function ΦSB(ζ::Array{Int64, 1}, η::Array{Int64, 1}, Λ1::Adjoint{Float64, Vector{Float64}}, Λ2::Matrix{Float64}, Xμ::Adjoint{Float64, Vector{Float64}}, X1::Adjoint{Float64, Vector{Float64}}, X2::Matrix{Float64}, μ::Float64) 
+    Λ2[2,2] = Q(τ)
+    Λ1[1] = real(Q(τ/2))
+    Xμ[1] = -imag(Q(τ/2))
+    for x in 2:size(Λ2, 1)
+        for y in 1:x # 1:size(Λ2, 2)
+            # @show x, y
+            j = x-y
+            if 1 <= j <= q-2
+                tp = d²Qdτ²(j)
+                Λ2[x, y] = y>1 ? real(tp) : 0
+                X2[x, y] = y<x ? imag(tp) : 0
+            end
+        end 
+        tp = d²Qdτ²oh(x)
+        Λ1[x] = real(tp)
+        X1[x] = imag(tp)
+        Xμ[x] = -imag(tp)
+    end
+
+    function ΦSB(ζ::Array{Int64, 1}, η::Array{Int64, 1}, Λ1::Adjoint{Float64, Vector{Float64}}, Λ2::Matrix{ComplexF64}, Xμ::Adjoint{Float64, Vector{Float64}}, X1::Adjoint{Float64, Vector{Float64}}, X2::Matrix{Float64}, μ::Float64) 
         ζ'*Λ2*ζ + ζ[1]*Λ1*ζ + ζ'*X2*η + 1im*η[1]*X1*ζ + 1im*μ*Xμ*ζ
     end
 
@@ -69,6 +66,14 @@ let
             end
         end
         accr = nacc/(nacc+nrej)
-        @show e,accr
+        @show e, accr
     end
+
+    fig, ax = plt.subplots()
+    ax.plot(η, label="η")
+    ax.plot(ζ, label="ζ")
+    ax.set_xlabel("j")
+    ax.legend()
+    fig.savefig("cfg.png")
+    plt.close()
 end
