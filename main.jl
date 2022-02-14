@@ -5,11 +5,11 @@ function Q(t::Float64; ω∞::Float64=10.0, α::Float64=1.0, β::Float64=1.0, ω
     return quadgk(ω -> 1/π*I(ω; α=α, ωc=ωc)/ω^2*(coth(ω*β/2)*(1-cos(ω*t)) + 1im*sin(ω*t)), 0.0, ω∞)[1]
 end
 
-let
+# let
     μ = 1.0
-    ne = 1000
-    q = 20
-    τ = 2.0
+    ne = 20
+    q = 100
+    τ = 10.0
     vη = vζ = [-1, 0, +1]  # allowed variable values
     Nη = Nζ = q
     η, ζ = rand(vη, Nη), rand(vζ, Nζ)
@@ -36,6 +36,9 @@ let
                 tp = d²Qdτ²(j)
                 Λ2[x, y] = y>1 ? real(tp) : 0
                 X2[x, y] = y<x ? imag(tp) : 0
+            end
+            if j==0
+                Λ2[x, y] = Λ2[2,2]
             end
         end 
         tp = d²Qdτ²oh(x)
@@ -76,4 +79,4 @@ let
     ax.legend()
     fig.savefig("cfg.png")
     plt.close()
-end
+# end
