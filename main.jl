@@ -5,7 +5,7 @@ function Q(t::Float64; ω∞::Float64=10.0, α::Float64=1.0, β::Float64=1.0, ω
     return quadgk(ω -> 1/π*I(ω; α=α, ωc=ωc)/ω^2*(coth(ω*β/2)*(1-cos(ω*t)) + 1im*sin(ω*t)), 0.0, ω∞)[1]
 end
 
-# let
+#let
     μ = 1.0
     ne = 100
     q = 10
@@ -14,7 +14,7 @@ end
     Nη = Nζ = q
     η, ζ = rand(vη, Nη), rand(vζ, Nζ)
 
-    α = 0.
+    α = 1.5
     β = 0.1
     ωc = 100.
 
@@ -86,4 +86,4 @@ end
     ax.legend()
     fig.savefig("cfg.png")
     plt.close()
-# end
+#end
